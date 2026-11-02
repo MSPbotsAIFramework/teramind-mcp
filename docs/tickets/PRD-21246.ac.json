@@ -1,122 +1,169 @@
 [
-  {
-    "id": "TC-TMD-001",
-    "ac": "AC1",
-    "text": "Given valid credentials, When teramind_list_computers is called, Then it returns the tenant's computer inventory as a non-empty list of {id, name, online} records (mocked upstream)",
-    "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_computers_returns_inventory"]
-  },
-  {
-    "id": "TC-TMD-002",
-    "ac": "AC9",
-    "text": "Given a mocked upstream response with more rows than the default limit, When teramind_list_computers is called without an explicit limit, Then exactly limit rows are returned and has_more is true",
-    "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_computers_truncates_with_has_more"]
-  },
-  {
-    "id": "TC-TMD-003",
-    "ac": "AC2",
-    "text": "Given a computer id from the mocked inventory, When teramind_get_computer is called with it, Then the full computer record is returned; When called with an id the mocked upstream does not have, Then not_found is returned",
-    "type": "auto",
-    "tests": [
-      "tests/test_tools.py::test_get_computer_returns_detail",
-      "tests/test_tools.py::test_get_computer_not_found"
-    ]
-  },
-  {
-    "id": "TC-TMD-004",
-    "ac": "AC3",
-    "text": "Given valid credentials, When teramind_list_agents is called, Then it returns the user/agent inventory; When teramind_get_agent is called with an id from that list, Then that agent's detail record is returned",
-    "type": "auto",
-    "tests": [
-      "tests/test_tools.py::test_list_agents_returns_inventory",
-      "tests/test_tools.py::test_get_agent_returns_detail"
-    ]
-  },
-  {
-    "id": "TC-TMD-005",
-    "ac": "AC4",
-    "text": "Given a valid period_start and period_end, When teramind_list_alerts is called, Then it returns the alerts raised in that window, each with rule_id, agent, computer and timestamp",
-    "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_alerts_returns_window"]
-  },
-  {
-    "id": "TC-TMD-006",
-    "ac": "AC4",
-    "text": "Given period_start is missing, When teramind_list_alerts is called, Then invalid_argument is returned and no upstream request is made",
-    "type": "auto",
-    "tests": ["tests/test_tools.py::test_list_alerts_requires_period_start"]
-  },
-  {
-    "id": "TC-TMD-007",
-    "ac": "AC5",
-    "text": "Given rule_ids from a prior list_alerts result, When teramind_describe_alert_rules is called with them, Then a name/description is returned for each id",
-    "type": "auto",
-    "tests": ["tests/test_tools.py::test_describe_alert_rules_returns_names"]
-  },
-  {
-    "id": "TC-TMD-008",
-    "ac": "AC6",
-    "text": "Given valid credentials, When teramind_list_behavior_policies, teramind_get_behavior_policy, teramind_list_behavior_groups, and teramind_list_anomaly_rules are each called, Then each returns its corresponding mocked structure without error",
-    "type": "auto",
-    "tests": [
-      "tests/test_tools.py::test_list_behavior_policies",
-      "tests/test_tools.py::test_get_behavior_policy",
-      "tests/test_tools.py::test_list_behavior_groups",
-      "tests/test_tools.py::test_list_anomaly_rules"
-    ]
-  },
-  {
-    "id": "TC-TMD-009",
-    "ac": "AC7",
-    "text": "Given no X-Teramind-Access-Token header, When any tool is called, Then the call returns 401 with a body listing both required headers",
-    "type": "auto",
-    "tests": ["tests/test_middleware.py::test_missing_credentials_returns_401_with_required_headers"]
-  },
-  {
-    "id": "TC-TMD-010",
-    "ac": "AC7",
-    "text": "Given X-Teramind-Instance is not a *.teramind.co host (e.g. evil.example.com), When any tool is called, Then invalid_argument is returned and zero outbound requests are made to the disallowed host",
-    "type": "auto",
-    "tests": ["tests/test_middleware.py::test_invalid_instance_host_rejected_before_any_outbound_call"]
-  },
-  {
-    "id": "TC-TMD-011",
-    "ac": "AC8",
-    "text": "Given the mocked upstream returns 503, When any tool is called, Then upstream_error is returned with retryable true, not an unhandled exception",
-    "type": "auto",
-    "tests": ["tests/test_client.py::test_upstream_503_maps_to_retryable_upstream_error"]
-  },
-  {
-    "id": "TC-TMD-012",
-    "ac": "AC8",
-    "text": "Given the mocked upstream returns 429 with Retry-After then succeeds, When a tool is called, Then the client retries and returns the normal result; Given 429 on every attempt, Then rate_limited is returned",
-    "type": "auto",
-    "tests": [
-      "tests/test_client.py::test_429_with_retry_after_then_success",
-      "tests/test_client.py::test_429_exhausted_returns_rate_limited"
-    ]
-  },
-  {
-    "id": "TC-TMD-013",
-    "ac": "AC10",
-    "text": "Given two concurrent tools/call requests carrying two different tenants' instance/token headers against distinct mocked upstream hosts, When both are in flight at the same time, Then neither request's response or logs contain the other tenant's instance, token, or data",
-    "type": "auto",
-    "tests": ["tests/test_middleware.py::test_concurrent_requests_do_not_cross_tenant_context"]
-  },
-  {
-    "id": "TC-TMD-014",
-    "ac": "AC1",
-    "text": "Given a real Teramind test account, When initialize -> tools/list -> tools/call is run against the live API for each of the 10 tools, Then the live response shapes match the documented contract",
-    "type": "manual",
-    "steps": [
-      "Obtain a real Teramind instance host and access token from a test/trial account",
-      "Run `initialize`, then `tools/list`, confirm 10 tools are advertised",
-      "Call each of the 10 tools once against the live API with the real credentials",
-      "Compare each response's field names/types against docs/tickets/PRD-21246.md Data & API contract"
-    ],
-    "expect": "All 10 tools return 200-equivalent MCP results whose fields match the documented contract, or documented discrepancies are filed as a follow-up",
-    "result": "blocked",
-    "evidence": "needs a real vendor account — none available at design time; does not block 6b per vendor-mcp completion standard (no test account is not a blocker)"
-  }
+    {
+        "id": "TC-TMD-001",
+        "ac": "AC1",
+        "text": "Given valid credentials, When teramind_list_computers is called, Then it returns the tenant's computer inventory as a non-empty list of {id, name, online} records (mocked upstream)",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_computers_returns_inventory"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-002",
+        "ac": "AC9",
+        "text": "Given a mocked upstream response with more rows than the default limit, When teramind_list_computers is called without an explicit limit, Then exactly limit rows are returned and has_more is true",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_computers_truncates_with_has_more"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-003",
+        "ac": "AC2",
+        "text": "Given a computer id from the mocked inventory, When teramind_get_computer is called with it, Then the full computer record is returned; When called with an id the mocked upstream does not have, Then not_found is returned",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_get_computer_returns_detail",
+            "tests/test_tools.py::test_get_computer_not_found"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-004",
+        "ac": "AC3",
+        "text": "Given valid credentials, When teramind_list_agents is called, Then it returns the user/agent inventory; When teramind_get_agent is called with an id from that list, Then that agent's detail record is returned",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_agents_returns_inventory",
+            "tests/test_tools.py::test_get_agent_returns_detail"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-005",
+        "ac": "AC4",
+        "text": "Given a valid period_start and period_end, When teramind_list_alerts is called, Then it returns the alerts raised in that window, each with rule_id, agent, computer and timestamp",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_alerts_returns_window"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-006",
+        "ac": "AC4",
+        "text": "Given period_start is missing, When teramind_list_alerts is called, Then invalid_argument is returned and no upstream request is made",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_alerts_requires_period_start"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-007",
+        "ac": "AC5",
+        "text": "Given rule_ids from a prior list_alerts result, When teramind_describe_alert_rules is called with them, Then a name/description is returned for each id",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_describe_alert_rules_returns_names"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-008",
+        "ac": "AC6",
+        "text": "Given valid credentials, When teramind_list_behavior_policies, teramind_get_behavior_policy, teramind_list_behavior_groups, and teramind_list_anomaly_rules are each called, Then each returns its corresponding mocked structure without error",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_list_behavior_policies",
+            "tests/test_tools.py::test_get_behavior_policy",
+            "tests/test_tools.py::test_list_behavior_groups",
+            "tests/test_tools.py::test_list_anomaly_rules"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-009",
+        "ac": "AC7",
+        "text": "Given no X-Teramind-Access-Token header, When any tool is called, Then the call returns 401 with a body listing both required headers",
+        "type": "auto",
+        "tests": [
+            "tests/test_middleware.py::test_missing_credentials_returns_401_with_required_headers_listed",
+            "tests/test_middleware.py::test_missing_one_of_two_headers_still_returns_401"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown. Also verified over real HTTP: POST /mcp with no credential headers on a locally running server -> HTTP 401 with required_headers listing both headers (manual curl smoke test, 2026-11-02; see docs/tickets/PRD-21246.md Self-test)."
+    },
+    {
+        "id": "TC-TMD-010",
+        "ac": "AC7",
+        "text": "Given X-Teramind-Instance is not a *.teramind.co host (e.g. evil.example.com), When any tool is called, Then invalid_argument is returned and zero outbound requests are made to the disallowed host",
+        "type": "auto",
+        "tests": [
+            "tests/test_client.py::test_client_rejects_invalid_instance_host_at_construction_time",
+            "tests/test_tools.py::test_invalid_instance_host_rejected_before_any_outbound_call"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown. Also verified over real HTTP end-to-end: a running server, tools/call with X-Teramind-Instance: evil.example.com -> MCP result (isError:false) carrying the invalid_argument envelope, returned immediately with no outbound call (manual curl smoke test, 2026-11-02; see docs/tickets/PRD-21246.md Self-test)."
+    },
+    {
+        "id": "TC-TMD-011",
+        "ac": "AC8",
+        "text": "Given the mocked upstream returns 503, When any tool is called, Then upstream_error is returned with retryable true, not an unhandled exception",
+        "type": "auto",
+        "tests": [
+            "tests/test_client.py::test_503_raises_upstream_error_retryable",
+            "tests/test_tools.py::test_upstream_503_returns_upstream_error_envelope"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown. Also verified over real HTTP against the real Teramind API: X-Teramind-Instance: acme.teramind.co (a *.teramind.co host with no live tenant behind it) returned a real 'Deleted instance' response within 7.8s, mapped to {\"error\":{\"code\":\"upstream_error\",\"retryable\":true}} with no token leaked (manual curl smoke test, 2026-11-02; see docs/tickets/PRD-21246.md Self-test). Confirms the *.teramind.co domain itself is live and reachable, independent of the mocked unit tests."
+    },
+    {
+        "id": "TC-TMD-012",
+        "ac": "AC8",
+        "text": "Given the mocked upstream returns 429 with Retry-After then succeeds, When a tool is called, Then the client retries and returns the normal result; Given 429 on every attempt, Then rate_limited is returned",
+        "type": "auto",
+        "tests": [
+            "tests/test_client.py::test_429_retries_then_succeeds",
+            "tests/test_client.py::test_429_on_every_attempt_raises_rate_limited"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-013",
+        "ac": "AC10",
+        "text": "Given two concurrent tools/call requests carrying two different tenants' instance/token headers against distinct mocked upstream hosts, When both are in flight at the same time, Then neither request's response or logs contain the other tenant's instance, token, or data",
+        "type": "auto",
+        "tests": [
+            "tests/test_tools.py::test_concurrent_requests_do_not_cross_tenants"
+        ],
+        "result": "pass",
+        "evidence": "uv run pytest -q -> 35 passed, 1 warning (pre-existing starlette.testclient deprecation notice, unrelated) on 2026-11-02; see docs/tickets/PRD-21246.md Self-test section for the full command output and per-file breakdown."
+    },
+    {
+        "id": "TC-TMD-014",
+        "ac": "AC1",
+        "text": "Given a real Teramind test account, When initialize -> tools/list -> tools/call is run against the live API for each of the 10 tools, Then the live response shapes match the documented contract",
+        "type": "manual",
+        "steps": [
+            "Obtain a real Teramind instance host and access token from a test/trial account",
+            "Run `initialize`, then `tools/list`, confirm 10 tools are advertised",
+            "Call each of the 10 tools once against the live API with the real credentials",
+            "Compare each response's field names/types against docs/tickets/PRD-21246.md Data & API contract"
+        ],
+        "expect": "All 10 tools return 200-equivalent MCP results whose fields match the documented contract, or documented discrepancies are filed as a follow-up",
+        "result": "blocked",
+        "evidence": "needs a real vendor account \u2014 none available at design time; does not block 6b per vendor-mcp completion standard (no test account is not a blocker)"
+    }
 ]
