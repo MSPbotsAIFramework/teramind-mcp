@@ -1,6 +1,7 @@
 """TeramindClient unit tests: URL building, the SSRF instance-host guard
-(TC-TMD-010), retry/backoff on 429/5xx (TC-TMD-011, TC-TMD-012), and status
--> error-code mapping — all via respx, no real network calls.
+(TC-TMD-010), retry/backoff on 429/5xx (TC-TMD-011, TC-TMD-012), status
+-> error-code mapping, and structured per-call logging (PRD-21246 review
+round 1 must-fix) — all via respx, no real network calls.
 """
 
 import httpx
@@ -45,7 +46,7 @@ async def test_get_builds_correct_url_and_header():
         return_value=httpx.Response(200, json=[{"id": 1, "name": "WS-1"}])
     )
     client = TeramindClient("acme.teramind.co", "tok-abc")
-    result = await client.get("/tm-api/computer")
+    result = await client.get("/tm-api/computer", tool="teramind_list_computers")
 
     assert route.called
     assert route.calls.last.request.headers["x-access-token"] == "tok-abc"
@@ -59,7 +60,7 @@ async def test_404_raises_not_found():
     )
     client = TeramindClient("acme.teramind.co", "tok")
     with pytest.raises(NotFoundError):
-        await client.get("/tm-api/computer/missing")
+        await client.get("/tm-api/computer/missing", tool="teramind_get_computer")
 
 
 @respx.mock
@@ -69,7 +70,7 @@ async def test_401_raises_unauthorized():
     )
     client = TeramindClient("acme.teramind.co", "bad-tok")
     with pytest.raises(UnauthorizedError):
-        await client.get("/tm-api/computer")
+        await client.get("/tm-api/computer", tool="teramind_list_computers")
 
 
 @respx.mock
@@ -87,7 +88,7 @@ async def test_503_raises_upstream_error_retryable(monkeypatch):
     )
     client = TeramindClient("acme.teramind.co", "tok")
     with pytest.raises(UpstreamError) as exc_info:
-        await client.get("/tm-api/computer")
+        await client.get("/tm-api/computer", tool="teramind_list_computers")
 
     assert exc_info.value.retryable is True
     # Retried _MAX_RETRIES + 1 times total before giving up.
@@ -110,7 +111,7 @@ async def test_429_retries_then_succeeds(monkeypatch):
         httpx.Response(200, json=[{"id": 1}]),
     ]
     client = TeramindClient("acme.teramind.co", "tok")
-    result = await client.get("/tm-api/computer")
+    result = await client.get("/tm-api/computer", tool="teramind_list_computers")
 
     assert result == [{"id": 1}]
     assert route.call_count == 2
@@ -131,6 +132,45 @@ async def test_429_on_every_attempt_raises_rate_limited(monkeypatch):
     )
     client = TeramindClient("acme.teramind.co", "tok")
     with pytest.raises(RateLimitedError) as exc_info:
-        await client.get("/tm-api/computer")
+        await client.get("/tm-api/computer", tool="teramind_list_computers")
 
     assert exc_info.value.retryable is True
+
+
+@respx.mock
+async def test_successful_call_logs_tool_status_and_ok_code(caplog):
+    respx.get("https://acme.teramind.co/tm-api/computer").mock(
+        return_value=httpx.Response(200, json=[{"id": 1}])
+    )
+    client = TeramindClient("acme.teramind.co", "secret-token-value")
+    with caplog.at_level("INFO", logger="teramind_mcp.client"):
+        await client.get("/tm-api/computer", tool="teramind_list_computers")
+
+    assert any(
+        "tool=teramind_list_computers" in r.message
+        and "status=200" in r.message
+        and "code=ok" in r.message
+        for r in caplog.records
+    )
+    assert "secret-token-value" not in caplog.text
+    assert "acme.teramind.co" not in caplog.text
+
+
+@respx.mock
+async def test_error_call_logs_tool_status_and_error_code(caplog):
+    respx.get("https://acme.teramind.co/tm-api/computer/missing").mock(
+        return_value=httpx.Response(404, json={"message": "not found"})
+    )
+    client = TeramindClient("acme.teramind.co", "secret-token-value")
+    with caplog.at_level("INFO", logger="teramind_mcp.client"):
+        with pytest.raises(NotFoundError):
+            await client.get("/tm-api/computer/missing", tool="teramind_get_computer")
+
+    assert any(
+        "tool=teramind_get_computer" in r.message
+        and "status=404" in r.message
+        and "code=not_found" in r.message
+        for r in caplog.records
+    )
+    assert "secret-token-value" not in caplog.text
+    assert "acme.teramind.co" not in caplog.text

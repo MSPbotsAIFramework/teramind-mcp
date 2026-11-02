@@ -26,7 +26,7 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get("/tm-api/computer")
+            raw = await client.get("/tm-api/computer", tool="teramind_list_computers")
         except TeramindError as e:
             return e.to_envelope()
         rows = [_project(c) for c in raw] if isinstance(raw, list) else []
@@ -46,7 +46,7 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get(f"/tm-api/computer/{computer_id}")
+            raw = await client.get(f"/tm-api/computer/{computer_id}", tool="teramind_get_computer")
         except TeramindError as e:
             return e.to_envelope()
         return dump_json_capped(raw)

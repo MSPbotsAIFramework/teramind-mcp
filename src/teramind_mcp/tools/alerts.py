@@ -38,6 +38,7 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
                 return NOT_CONFIGURED
             raw = await client.get(
                 "/tm-api/v1/alerts",
+                tool="teramind_list_alerts",
                 params={"periodStart": period_start, "periodEnd": period_end},
             )
         except TeramindError as e:
@@ -68,7 +69,11 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.post("/tm-api/v1/alerts/descriptions", json_body={"ids": rule_ids})
+            raw = await client.post(
+                "/tm-api/v1/alerts/descriptions",
+                tool="teramind_describe_alert_rules",
+                json_body={"ids": rule_ids},
+            )
         except TeramindError as e:
             return e.to_envelope()
         if isinstance(raw, list):

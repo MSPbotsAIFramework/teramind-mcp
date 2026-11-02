@@ -33,7 +33,9 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get("/tm-api/v1/agents", params={"fields": fields})
+            raw = await client.get(
+                "/tm-api/v1/agents", tool="teramind_list_agents", params={"fields": fields}
+            )
         except TeramindError as e:
             return e.to_envelope()
         rows = raw if isinstance(raw, list) else []
@@ -53,7 +55,11 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get(f"/tm-api/v1/agents/{agent_id}", params={"fields": fields})
+            raw = await client.get(
+                f"/tm-api/v1/agents/{agent_id}",
+                tool="teramind_get_agent",
+                params={"fields": fields},
+            )
         except TeramindError as e:
             return e.to_envelope()
         return dump_json_capped(raw)

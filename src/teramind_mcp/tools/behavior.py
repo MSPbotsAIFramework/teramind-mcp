@@ -25,7 +25,9 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get("/tm-api/behavior-policy")
+            raw = await client.get(
+                "/tm-api/behavior-policy", tool="teramind_list_behavior_policies"
+            )
         except TeramindError as e:
             return e.to_envelope()
         rows = raw if isinstance(raw, list) else []
@@ -45,7 +47,9 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get(f"/tm-api/behavior-policy/{policy_id}")
+            raw = await client.get(
+                f"/tm-api/behavior-policy/{policy_id}", tool="teramind_get_behavior_policy"
+            )
         except TeramindError as e:
             return e.to_envelope()
         return dump_json_capped(raw)
@@ -60,7 +64,7 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get("/tm-api/behavior-group")
+            raw = await client.get("/tm-api/behavior-group", tool="teramind_list_behavior_groups")
         except TeramindError as e:
             return e.to_envelope()
         rows = raw if isinstance(raw, list) else []
@@ -79,7 +83,7 @@ def register(mcp: FastMCP, client_factory: Callable[[], TeramindClient | None]) 
             client = client_factory()
             if client is None:
                 return NOT_CONFIGURED
-            raw = await client.get("/tm-api/behavior-rule")
+            raw = await client.get("/tm-api/behavior-rule", tool="teramind_list_anomaly_rules")
         except TeramindError as e:
             return e.to_envelope()
         rows = raw if isinstance(raw, list) else []

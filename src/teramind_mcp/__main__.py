@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from .auth import CredentialsMiddleware
@@ -28,6 +29,20 @@ def _build_http_app(mcp, settings):
 
 
 def main() -> None:
+    # Without a configured handler/level, the per-call logging added in
+    # client.py (tool name, upstream status, error code — PRD-21246 review
+    # round 1 must-fix) is silently dropped by Python's default
+    # last-resort handler (WARNING+ only). basicConfig here is what makes
+    # those INFO lines actually reach stdout/stderr, which is what a
+    # container runtime captures. uvicorn's own dictConfig (invoked by
+    # uvicorn.run below) runs with disable_existing_loggers=False, so it
+    # does not remove this handler.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        stream=sys.stderr,
+    )
+
     settings = get_settings()
     mcp = create_mcp_server(settings)
 
