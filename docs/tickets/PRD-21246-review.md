@@ -104,3 +104,54 @@ README `Connector` section: unchanged (`git diff --name-only` confirms `README.m
 round's diff).
 
 Next: next review round should re-check this file set against the must-fix above.
+
+## Round 2 · 2026-11-02 · reviewed dev/PRD-21246 @ 6b71421 (base main @ b95db34)
+
+Verdict: approved
+
+### Findings
+
+No must-fix findings. Round 1's single must-fix (finding 1, missing structured per-call logging) is
+resolved — independently verified, not just taken on the dev's word:
+
+- `uv run pytest -v` re-run from scratch on `6b71421` (fresh `uv sync`): **37/37 pass**, matching the
+  Fixes section exactly (35 prior + 2 new logging tests: `test_successful_call_logs_tool_status_and_ok_code`,
+  `test_error_call_logs_tool_status_and_error_code`).
+- `ruff check .`: all checks passed (re-run independently).
+- Chinese-text scan (`grep -rnP '[\x{4e00}-\x{9fff}]' --exclude-dir=.git --exclude-dir=.venv .`):
+  2 hits, both in `docs/tickets/PRD-21246-review.md` (this file) quoting the SOP §14 checklist item's
+  Chinese title for citation inside the frozen Round 1 finding text — not code, not README, not
+  introduced by this round (`git diff --name-only 0f46140 6b71421` does not touch this file above the
+  Fixes section). Per `REVIEW.md` §3 this is a WARN, already disclosed in the Fixes section by the dev;
+  not a must-fix.
+- Read every `client.get(...)`/`client.post(...)` call site (`grep -rn "client\.get(\|client\.post("
+  src/`): all 10 tool call sites in `tools/{computers,agents,alerts,behavior}.py` now pass
+  `tool="teramind_<name>"`, and each string matches the `async def` name directly under its
+  `@mcp.tool` decorator exactly (checked all 10 pairs) — the logged tool name is the real MCP tool
+  name, not a guess.
+- `UpstreamError.code` (used in the network-error log line in `client.py`'s exception branch) is a
+  class attribute (`errors.py`), readable without an instance — no risk of `AttributeError` on the
+  retries-exhausted path.
+- No log call passes `self._host` or `self._token` (`client.py`); the two new `caplog`-based tests
+  assert the literal fake token/host strings are absent from the captured log text.
+- `logging.basicConfig(..., stream=sys.stderr)` runs in `main()` before `uvicorn.run(...)`. Built the
+  image (`docker build --platform linux/amd64 -t teramind-mcp:review-round2 .`, the dev's Self-test
+  flagged this as unverified in their sandbox — it builds clean, only 3 harmless `UndefinedVar`
+  warnings for unset `--build-arg` values with no default, consistent with the other MCP repos in this
+  org) and ran it (`docker run -p 18099:8080 ...`): `GET /health` → 200, `POST /mcp tools/list` with no
+  credential headers → 401 with the expected envelope, and the container's stdout/stderr shows
+  `basicConfig`'s format (`%(asctime)s %(levelname)s %(name)s %(message)s`) already applied to the MCP
+  SDK's own `mcp.server.streamable_http_manager` logger at startup — confirming the handler is live and
+  not later disabled by `uvicorn.run`'s own logging setup, corroborating the dev's claim without a real
+  vendor account being needed for this part of the check.
+- Scope of this round's diff matches what the Fixes section describes: `git diff --stat 0f46140
+  6b71421` touches only `__main__.py`, `client.py`, `tools/{agents,alerts,behavior,computers}.py`,
+  `tests/test_client.py`, and this review doc — `README.md` and the frozen `docs/tickets/PRD-21246.md`
+  are untouched, consistent with "no behavior change to any tool, purely passing an identifier
+  through."
+
+No new findings. Round 1's clean items (SSRF guard, credential isolation via `contextvars`, error
+envelope vocabulary, pagination limits, README Connector section) are untouched by this round's diff
+and are not re-reviewed.
+
+Status: frozen @ 6b71421
